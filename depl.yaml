@@ -1,0 +1,70 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: rajesh-app
+  name: rajesh-app
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: rajesh-app
+  template:
+    metadata:
+      labels:
+        app: rajesh-app
+    spec:
+
+      initContainers:
+      - image: alpine/git:gai-v1
+        imagePullPolicy: Never
+        name: git-sync
+        
+        workingDir: /git
+        securityContext:
+          runAsUser: 1000
+          runAsGroup: 1000
+        workingDir: /git
+        command: ['sh', '-c']
+        args: ['echo hello && git pull https://$GIT_USER:$GIT_PASSWD@gitlab.gailabs.com/Eugenio/wp.git master']
+        # env:
+        # - name: GIT_USER
+        #   valueFrom:
+        #      secretKeyRef:
+        #        name: git-secret
+        #        key: GIT_USER
+        # - name: GIT_PASSWD
+        #   valueFrom:
+        #      secretKeyRef:
+        #        name: git-secret
+        #        key: GIT_PASSWD
+        volumeMounts:
+        - name: git-code
+          mountPath: /git
+      containers:
+      - name: nginx
+        image: nginx
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 80
+
+      volumes:
+       - name: git-code
+         nfs:
+           server: 192.168.1.30
+           path: /home/rajesh/projects/GitDemo
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: rajesh-service
+  namespace: default
+spec:
+  selector:
+      app: rajesh-app
+  type: NodePort
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 80
